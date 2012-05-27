@@ -42,8 +42,11 @@ Window get_active_window(Display *dpy) {
 
 	XGetWindowProperty(dpy, DefaultRootWindow(dpy), XInternAtom(dpy, "_NET_ACTIVE_WINDOW", 1),
 			0, 1, False, AnyPropertyType, &some, &unused, &nitems, &crap, &result);
-	Window window = *(Window*)result;
-	XFree(result);
+	Window window = 0;
+	if (result != NULL) {
+		window = *(Window*)result;
+		XFree(result);
+	}
 	return window;
 }
 
@@ -62,8 +65,8 @@ int load_window_xkb_group(Display *dpy, Window w) {
 	} else {
 		printf("WTFKB_GROUP is unset for the window, "
 				"or the window does not exist any more. "
-				"Returning current\n");
-		return get_current_xkb_group(dpy);
+				"Returning 0\n");
+		return 0;
 	}
 }
 
