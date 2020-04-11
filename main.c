@@ -20,15 +20,14 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #include <stdlib.h>
 #include <string.h>
 #include <malloc.h>
-#include <X11/X.h>
-#include <X11/extensions/XKB.h>
+#include <xkbcommon/xkbcommon-x11.h>
 #include <xcb/xcb.h>
 #include <xcb/xkb.h>
 #include <xcb/xcb_util.h>
 #include <xcb/xcb_ewmh.h>
 
 uint32_t get_current_xkb_group(xcb_connection_t *connection) {
-	xcb_xkb_get_state_cookie_t cookie = xcb_xkb_get_state(connection, XkbUseCoreKbd);
+	xcb_xkb_get_state_cookie_t cookie = xcb_xkb_get_state(connection, XCB_XKB_ID_USE_CORE_KBD);
 	xcb_generic_error_t *error;
 	xcb_xkb_get_state_reply_t *reply = xcb_xkb_get_state_reply(connection, cookie, &error);
 	uint32_t result;
@@ -45,12 +44,12 @@ uint32_t get_current_xkb_group(xcb_connection_t *connection) {
 }
 
 void set_current_xkb_group(xcb_connection_t *connection, uint32_t group) {
-	xcb_void_cookie_t cookie = xcb_xkb_latch_lock_state(connection, XkbUseCoreKbd,
+	xcb_void_cookie_t cookie = xcb_xkb_latch_lock_state(connection, XCB_XKB_ID_USE_CORE_KBD,
 			0, 0, 1/*lockGroup=true*/, group/*groupLock*/, 0, 0, 0);
 	xcb_generic_error_t *error = xcb_request_check(connection, cookie);
 	if (error != NULL) {
 		switch (error->error_code) {
-			case BadValue:
+			case XCB_VALUE:
 				fprintf(stderr, "set_current_xkb_group(%d) failed with BadValue error\n", group);
 				break;
 			default:
@@ -105,7 +104,7 @@ void save_window_xkb_group(xcb_connection_t *connection, xcb_window_t window, ui
 	xcb_generic_error_t *error = xcb_request_check(connection, cookie);
 	if (error != NULL) {
 		switch (error->error_code) {
-			case BadWindow:
+			case XCB_WINDOW:
 				printf("xcb_change_property(WTFKB_GROUP) failed because the window does not exist\n");
 				break;
 			default:
@@ -153,6 +152,12 @@ int main(int argc, char **argv) {
 		exit(1);
 	}
 	free(error);
+
+	int xkb_ok = xkb_x11_setup_xkb_extension(connection, XKB_X11_MIN_MAJOR_XKB_VERSION, XKB_X11_MIN_MINOR_XKB_VERSION, 0, NULL, NULL, NULL, NULL);
+	if (!xkb_ok) {
+		fprintf(stderr, "Failed to setup XKB extension.\n");
+		exit(1);
+	}
 
 	atom_NET_ACTIVE_WINDOW = get_atom_by_name(connection, "_NET_ACTIVE_WINDOW");
 	atom_WTFKB_GROUP = get_atom_by_name(connection, "WTFKB_GROUP");
